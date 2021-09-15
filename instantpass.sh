@@ -82,13 +82,14 @@ deletepw() {
         imenu -e 'failed to delete password'
         return 1
     }
+    cleanpasswords
 }
 
 if [ "$1" = '--menu' ]; then
     CHOICE="$(
-        echo ':gadd password
-:rdelete password
-close menu' | instantmenu -l 20 -rc "$0"
+        echo ':g add password
+:r delete password
+:b close menu' | instantmenu -l 20 -h -1 -rc "$0" -q 'instantPASS menu'
     )"
     echo choice "$CHOICE"
     [ -z "$CHOICE" ] && exit
