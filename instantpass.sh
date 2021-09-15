@@ -113,12 +113,21 @@ password="$(selectpassword)"
 
 [[ -n $password ]] || exit
 
+if [ -e "$HOME"/.password-store/"$password".gpg ]; then
+    if [ "$(du -s ~/.password-store/"$password".gpg | grep -o '^[0-9]*')" -gt 100 ]; then
+        if imenu -c "$password is a large file, would you like to export it to the file system instead of the clipboard?"; then
+            SAVEFILE="$(zenity --file-selection --save --confirm-overwrite --filename "$(basename "$password")")"
+            [ -z "$SAVEFILE" ] && exit
+            pass "$password" >"$SAVEFILE"
+            exit
+        fi
+    fi
+fi
+
 if grep -q '\.otp$' <<<"$password"; then
-    pass otp -c "$password" 2>/dev/null
-    imenu -t 'copied one time password to clipboard'
+    pass otp -c "$password" 2>/dev/null && imenu -t 'copied one time password to clipboard'
 else
-    pass show -c "$password" 2>/dev/null
-    imenu -t 'copied password to clipboard'
+    pass show -c "$password" 2>/dev/null && imenu -t 'copied password to clipboard'
 fi
 
 smartcat instantpass "$password" 1000 &
