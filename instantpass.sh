@@ -44,10 +44,18 @@ insertpw() {
             insertpw "$PWNAME"
             return
         else
-            {
-                echo "$PWCONTENT"
-                echo "$PWCONTENT"
-            } | pass insert "$PWNAME"
+            if grep -q 'otpauth://' <<<"$PWCONTENT"; then
+                notify-send 'created otp password'
+                {
+                    echo "$PWCONTENT"
+                    echo "$PWCONTENT"
+                } | pass otp insert "$PWNAME.otp"
+            else
+                {
+                    echo "$PWCONTENT"
+                    echo "$PWCONTENT"
+                } | pass insert "$PWNAME"
+            fi
             return
         fi
 
