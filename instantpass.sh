@@ -85,6 +85,23 @@ deletepw() {
     cleanpasswords
 }
 
+echousage() {
+
+    cat <<EOF
+Usage: instantpass [--menu|--help]
+    --menu
+        open context menu to insert or delete a password
+    --help
+        bring up this message
+EOF
+
+}
+
+if [ "$1" = '--help' ]; then
+    echousage
+    exit
+fi
+
 if [ "$1" = '--menu' ]; then
     CHOICE="$(
         echo ':g add password
@@ -114,7 +131,7 @@ password="$(selectpassword)"
 [[ -n $password ]] || exit
 
 if [ -e "$HOME"/.password-store/"$password".gpg ]; then
-    if [ "$(du -s ~/.password-store/"$password".gpg | grep -o '^[0-9]*')" -gt 100 ]; then
+    if [ "$(du -s ~/.password-store/"$password".gpg | grep -o '^[0-9]*')" -gt 100 ] || grep -q '\.file$' <<<"$password"; then
         if imenu -c "$password is a large file, would you like to export it to the file system instead of the clipboard?"; then
             SAVEFILE="$(zenity --file-selection --save --confirm-overwrite --filename "$(basename "$password")")"
             [ -z "$SAVEFILE" ] && exit
