@@ -4,8 +4,22 @@
 
 shopt -s nullglob globstar
 
+if [ "$1" = "--fzf" ]; then
+    USEFZF=1
+    shift
+fi
+
+choicemenu() {
+    if [ -n "$USEFZF" ]; then
+        # TODO: add frecency
+        fzf
+    else
+        instantmenu -q 'password selection' -l 20 -rc "$0 --menu"
+    fi
+}
+
 selectpassword() {
-    printf '%s\n' "${password_files[@]}" | smartcat instantpass | instantmenu -q 'password selection' -l 20 -rc "$0 --menu"
+    printf '%s\n' "${password_files[@]}" | smartcat instantpass | choicemenu
 }
 
 prefix=${PASSWORD_STORE_DIR-~/.password-store}
@@ -103,11 +117,19 @@ if [ "$1" = '--help' ]; then
 fi
 
 if [ "$1" = '--menu' ]; then
-    CHOICE="$(
-        echo ':g add password
+    if [ -n "$USEFZF" ]; then
+        CHOICE="$(
+            echo 'add password
+delete password
+close menu' | fzf
+        )"
+    else
+        CHOICE="$(
+            echo ':g add password
 :r delete password
 :b close menu' | instantmenu -l 20 -h -1 -rc "$0" -q 'instantPASS menu'
-    )"
+        )"
+    fi
     echo choice "$CHOICE"
     [ -z "$CHOICE" ] && exit
     case "$CHOICE" in
@@ -130,9 +152,22 @@ password="$(selectpassword)"
 
 [[ -n $password ]] || exit
 
+notifier() {
+    if [ -n "$USEFZF" ]; then
+        echo "$1"
+    else
+        if [ "$XDG_SESSION_TYPE" = "wayland" ]; then
+            notify-send "$1"
+        else
+            imenu -t "$1"
+        fi
+    fi
+}
+
 if [ -e "$HOME"/.password-store/"$password".gpg ]; then
     if [ "$(du -s ~/.password-store/"$password".gpg | grep -o '^[0-9]*')" -gt 100 ] || grep -q '\.file$' <<<"$password"; then
         if imenu -c "$password is a large file, would you like to export it to the file system instead of the clipboard?"; then
+            # TODO: add TUI alternative for zenity
             SAVEFILE="$(zenity --file-selection --save --confirm-overwrite --filename "$(basename "$password")")"
             [ -z "$SAVEFILE" ] && exit
             pass "$password" >"$SAVEFILE"
@@ -142,9 +177,9 @@ if [ -e "$HOME"/.password-store/"$password".gpg ]; then
 fi
 
 if grep -q '\.otp$' <<<"$password"; then
-    pass otp -c "$password" 2>/dev/null && imenu -t 'copied one time password to clipboard'
+    pass otp -c "$password" 2>/dev/null && notifier 'copied one time password to clipboard'
 else
-    pass show -c "$password" 2>/dev/null && imenu -t 'copied password to clipboard'
+    pass show -c "$password" 2>/dev/null && notifier 'copied password to clipboard'
 fi
 
 smartcat instantpass "$password" 1000 &
